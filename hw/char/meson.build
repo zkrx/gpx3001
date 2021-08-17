@@ -23,6 +23,7 @@ softmmu_ss.add(when: 'CONFIG_XILINX', if_true: files('xilinx_uartlite.c'))
 
 softmmu_ss.add(when: 'CONFIG_AVR_USART', if_true: files('avr_usart.c'))
 softmmu_ss.add(when: 'CONFIG_COLDFIRE', if_true: files('mcf_uart.c'))
+softmmu_ss.add(when: 'CONFIG_GPX3001', if_true: files('gpx3001_video.c'))
 softmmu_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic-uart.c'))
 softmmu_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_uart.c'))
 softmmu_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_uart.c'))

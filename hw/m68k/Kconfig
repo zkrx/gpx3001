@@ -8,6 +8,10 @@ config MCF5208
     select COLDFIRE
     select PTIMER
 
+config GPX3001
+    bool
+    select PTIMER
+
 config NEXTCUBE
     bool
     select FRAMEBUFFER

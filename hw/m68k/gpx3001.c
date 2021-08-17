@@ -11,10 +11,11 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "qemu/help-texts.h"
 #include "qemu/datadir.h"
 #include "cpu.h"
 #include "hw/irq.h"
-#include "hw/m68k/mcf.h"
+#include "hw/m68k/gpx.h"
 #include "hw/m68k/mcf_fec.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
@@ -247,23 +248,21 @@ static void mcf5208evb_init(MachineState *machine)
     env->vbr = 0;
     /* TODO: Configure BARs.  */
 
-    /* ROM at 0x00000000 */
-    memory_region_init_rom(rom, NULL, "mcf5208.rom", ROM_SIZE, &error_fatal);
+    /* ROM at 0x00800000 */
+    memory_region_init_rom(rom, NULL, "gpx3001.rom", ROM_SIZE, &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x00800000, rom);
 
-    /* DRAM at 0x40000000 */
-    memory_region_add_subregion(address_space_mem, 0x40000000, machine->ram);
+    /* DRAM at 0x00000000 */
+    memory_region_add_subregion(address_space_mem, 0x00000000, machine->ram);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "mcf5208.sram", 16 * KiB, &error_fatal);
+    memory_region_init_ram(sram, NULL, "gpx3001.sram", 16 * KiB, &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
     pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu);
 
-    mcf_uart_mm_init(0xfc060000, pic[26], serial_hd(0));
-    mcf_uart_mm_init(0xfc064000, pic[27], serial_hd(1));
-    mcf_uart_mm_init(0xfc068000, pic[28], serial_hd(2));
+    gpx_video_mm_init(0x00860000, pic[26], serial_hd(0));
 
     mcf5208_sys_init(address_space_mem, pic);
 
@@ -315,10 +314,17 @@ static void mcf5208evb_init(MachineState *machine)
             exit(1);
         }
         g_free(fn);
+
         /* Initial PC is always at offset 4 in firmware binaries */
         ptr = rom_ptr(0x00800004, 4);
         assert(ptr != NULL);
         env->pc = ldl_p(ptr);
+
+	/* Initial ISP is always at offset 0 in firmware binaries */
+        ptr = rom_ptr(0x00800000, 4);
+        assert(ptr != NULL);
+        env->sp[M68K_ISP] = ldl_p(ptr);
+        env->aregs[7] = ldl_p(ptr);
     }
 
     /* Load kernel.  */
@@ -355,8 +361,8 @@ static void mcf5208evb_machine_init(MachineClass *mc)
     mc->desc = "MCF5208EVB";
     mc->init = mcf5208evb_init;
     mc->is_default = true;
-    mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5208");
-    mc->default_ram_id = "mcf5208.ram";
+    mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68020");
+    mc->default_ram_id = "gpx3001.ram";
 }
 
-DEFINE_MACHINE("mcf5208evb", mcf5208evb_machine_init)
+DEFINE_MACHINE("gpx3001", mcf5208evb_machine_init)
