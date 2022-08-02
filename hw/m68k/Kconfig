@@ -11,6 +11,7 @@ config MCF5208
 config GPX3001
     bool
     select PTIMER
+    select IDE_MMIO
 
 config NEXTCUBE
     bool

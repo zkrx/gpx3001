@@ -26,6 +26,7 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "elf.h"
+#include "hw/ide.h"
 
 #define SYS_FREQ 166666666
 
@@ -240,6 +241,9 @@ static void mcf5208evb_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
+    DriveInfo *dinfo;
+    DeviceState *dev;
+    SysBusDevice *busdev;
 
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -263,6 +267,19 @@ static void mcf5208evb_init(MachineState *machine)
     pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu);
 
     gpx_video_mm_init(0x00860000, pic[26], serial_hd(0));
+
+    /* onboard CF (True IDE mode, Master only).
+     * Taken from h2/sh4/r2d.c
+     */
+    dinfo = drive_get(IF_IDE, 0, 0);
+    dev = qdev_new("mmio-ide");
+    busdev = SYS_BUS_DEVICE(dev);
+//  sysbus_connect_irq(busdev, 0, irq[CF_IDE]);
+    qdev_prop_set_uint32(dev, "shift", 1);
+    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_mmio_map(busdev, 0, 0x00850000);
+    sysbus_mmio_map(busdev, 1, 0x0085001d);
+    mmio_ide_init_drives(dev, dinfo, NULL);
 
     mcf5208_sys_init(address_space_mem, pic);
 
