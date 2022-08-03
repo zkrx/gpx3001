@@ -45,14 +45,14 @@ static void update_screen(void)
 	int i;
 
 	for (i = 0; i < BUFFER_LEN; i++) {
+		if (!(i % 0x50))
+			fprintf(stdout, "\n");
+
 		if (buf[i] >= ' ' && buf[i] < '~')
 			fprintf(stdout, "%c", buf[i]);
 		else
 			//fprintf(stdout, " 0x%02x ", buf[i]);
 			fprintf(stdout, " ");
-
-		if (!(i % 0x50))
-			fprintf(stdout, "\n");
 	}
 
 	fflush(stdout);
