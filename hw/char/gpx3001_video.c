@@ -1,9 +1,5 @@
 /*
- * ColdFire UART emulation.
- *
- * Copyright (c) 2007 CodeSourcery.
- *
- * This code is licensed under the GPL
+ * GPX3001 video framebuffer emulation.
  */
 
 #include "qemu/osdep.h"
@@ -21,64 +17,12 @@ struct gpx_video_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    uint8_t mr[2];
-    uint8_t sr;
-    uint8_t isr;
-    uint8_t imr;
-    uint8_t bg1;
-    uint8_t bg2;
-    uint8_t fifo[4];
-    uint8_t tb;
-    int current_mr;
-    int fifo_len;
-    int tx_enabled;
-    int rx_enabled;
     qemu_irq irq;
     CharBackend chr;
 };
 
 #define TYPE_GPX_VIDEO "gpx3001-video"
 OBJECT_DECLARE_SIMPLE_TYPE(gpx_video_state, GPX_VIDEO)
-
-/* UART Status Register bits.  */
-#define MCF_UART_RxRDY  0x01
-#define MCF_UART_FFULL  0x02
-#define MCF_UART_TxRDY  0x04
-#define MCF_UART_TxEMP  0x08
-#define MCF_UART_OE     0x10
-#define MCF_UART_PE     0x20
-#define MCF_UART_FE     0x40
-#define MCF_UART_RB     0x80
-
-/* Interrupt flags.  */
-#define MCF_UART_TxINT  0x01
-#define MCF_UART_RxINT  0x02
-#define MCF_UART_DBINT  0x04
-#define MCF_UART_COSINT 0x80
-
-/* UMR1 flags.  */
-#define MCF_UART_BC0    0x01
-#define MCF_UART_BC1    0x02
-#define MCF_UART_PT     0x04
-#define MCF_UART_PM0    0x08
-#define MCF_UART_PM1    0x10
-#define MCF_UART_ERR    0x20
-#define MCF_UART_RxIRQ  0x40
-#define MCF_UART_RxRTS  0x80
-
-static void gpx_video_update(gpx_video_state *s)
-{
-#if 0
-    s->isr &= ~(MCF_UART_TxINT | MCF_UART_RxINT);
-    if (s->sr & MCF_UART_TxRDY)
-        s->isr |= MCF_UART_TxINT;
-    if ((s->sr & ((s->mr[0] & MCF_UART_RxIRQ)
-                  ? MCF_UART_FFULL : MCF_UART_RxRDY)) != 0)
-        s->isr |= MCF_UART_RxINT;
-
-    qemu_set_irq(s->irq, (s->isr & s->imr) != 0);
-#endif
-}
 
 uint64_t gpx_video_read(void *opaque, hwaddr addr,
                        unsigned size)
@@ -93,90 +37,7 @@ uint64_t gpx_video_read(void *opaque, hwaddr addr,
     }
 }
 
-#if 0
-/* Update TxRDY flag and set data if present and enabled.  */
-static void gpx_video_do_tx(gpx_video_state *s)
-{
-    if (s->tx_enabled && (s->sr & MCF_UART_TxEMP) == 0) {
-        /* XXX this blocks entire thread. Rewrite to use
-         * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(&s->chr, (unsigned char *)&s->tb, 1);
-        s->sr |= MCF_UART_TxEMP;
-    }
-    if (s->tx_enabled) {
-        s->sr |= MCF_UART_TxRDY;
-    } else {
-        s->sr &= ~MCF_UART_TxRDY;
-    }
-}
-#endif
-
-#if 0
-static void gpx_do_command(gpx_video_state *s, uint8_t cmd)
-{
-    /* Misc command.  */
-    switch ((cmd >> 4) & 7) {
-    case 0: /* No-op.  */
-        break;
-    case 1: /* Reset mode register pointer.  */
-        s->current_mr = 0;
-        break;
-    case 2: /* Reset receiver.  */
-        s->rx_enabled = 0;
-        s->fifo_len = 0;
-        s->sr &= ~(MCF_UART_RxRDY | MCF_UART_FFULL);
-        break;
-    case 3: /* Reset transmitter.  */
-        s->tx_enabled = 0;
-        s->sr |= MCF_UART_TxEMP;
-        s->sr &= ~MCF_UART_TxRDY;
-        break;
-    case 4: /* Reset error status.  */
-        break;
-    case 5: /* Reset break-change interrupt.  */
-        s->isr &= ~MCF_UART_DBINT;
-        break;
-    case 6: /* Start break.  */
-    case 7: /* Stop break.  */
-        break;
-    }
-
-    /* Transmitter command.  */
-    switch ((cmd >> 2) & 3) {
-    case 0: /* No-op.  */
-        break;
-    case 1: /* Enable.  */
-        s->tx_enabled = 1;
-        gpx_video_do_tx(s);
-        break;
-    case 2: /* Disable.  */
-        s->tx_enabled = 0;
-        gpx_video_do_tx(s);
-        break;
-    case 3: /* Reserved.  */
-        fprintf(stderr, "gpx_video: Bad TX command\n");
-        break;
-    }
-
-    /* Receiver command.  */
-    switch (cmd & 3) {
-    case 0: /* No-op.  */
-        break;
-    case 1: /* Enable.  */
-        s->rx_enabled = 1;
-        break;
-    case 2:
-        s->rx_enabled = 0;
-        break;
-    case 3: /* Reserved.  */
-        fprintf(stderr, "gpx_video: Bad RX command\n");
-        break;
-    }
-}
-#endif
-
 #define BUFFER_LEN ((0xf000 - 0xc000) / 2)
-
 static char buf[BUFFER_LEN];
 
 static void update_screen(void)
@@ -226,64 +87,13 @@ void gpx_video_write(void *opaque, hwaddr addr,
 
         update_screen();
     }
-    //gpx_video_update(s);
 }
 
 static void gpx_video_reset(DeviceState *dev)
 {
     gpx_video_state *s = GPX_VIDEO(dev);
 
-    s->fifo_len = 0;
-    s->mr[0] = 0;
-    s->mr[1] = 0;
-    s->sr = MCF_UART_TxEMP;
-    s->tx_enabled = 0;
-    s->rx_enabled = 0;
-    s->isr = 0;
-    s->imr = 0;
-}
-
-static void gpx_video_push_byte(gpx_video_state *s, uint8_t data)
-{
-    /* Break events overwrite the last byte if the fifo is full.  */
-    if (s->fifo_len == 4)
-        s->fifo_len--;
-
-    s->fifo[s->fifo_len] = data;
-    s->fifo_len++;
-    s->sr |= MCF_UART_RxRDY;
-    if (s->fifo_len == 4)
-        s->sr |= MCF_UART_FFULL;
-
-    gpx_video_update(s);
-}
-
-static void gpx_video_event(void *opaque, QEMUChrEvent event)
-{
-    gpx_video_state *s = (gpx_video_state *)opaque;
-
-    switch (event) {
-    case CHR_EVENT_BREAK:
-        s->isr |= MCF_UART_DBINT;
-        gpx_video_push_byte(s, 0);
-        break;
-    default:
-        break;
-    }
-}
-
-static int gpx_video_can_receive(void *opaque)
-{
-    gpx_video_state *s = (gpx_video_state *)opaque;
-
-    return s->rx_enabled && (s->sr & MCF_UART_FFULL) == 0;
-}
-
-static void gpx_video_receive(void *opaque, const uint8_t *buf, int size)
-{
-    gpx_video_state *s = (gpx_video_state *)opaque;
-
-    gpx_video_push_byte(s, buf[0]);
+    (void)s;
 }
 
 static const MemoryRegionOps gpx_video_ops = {
@@ -307,8 +117,7 @@ static void gpx_video_realize(DeviceState *dev, Error **errp)
 {
     gpx_video_state *s = GPX_VIDEO(dev);
 
-    qemu_chr_fe_set_handlers(&s->chr, gpx_video_can_receive, gpx_video_receive,
-                             gpx_video_event, NULL, s, NULL, true);
+    (void)s;
 }
 
 static Property gpx_video_properties[] = {
