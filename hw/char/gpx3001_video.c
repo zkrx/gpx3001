@@ -12,6 +12,7 @@
 #include "hw/qdev-properties-system.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
+#include "ui/console.h"
 
 struct gpx_video_state {
     SysBusDevice parent_obj;
@@ -19,6 +20,9 @@ struct gpx_video_state {
     MemoryRegion iomem;
     qemu_irq irq;
     CharBackend chr;
+
+    QemuConsole *con;
+    int redraw;
 };
 
 #define TYPE_GPX_VIDEO "gpx3001-video"
@@ -40,34 +44,16 @@ uint64_t gpx_video_read(void *opaque, hwaddr addr,
 #define BUFFER_LEN ((0xf000 - 0xc000) / 2)
 static char buf[BUFFER_LEN];
 
-static void update_screen(void)
-{
-	int i;
-
-	for (i = 0; i < BUFFER_LEN; i++) {
-		if (!(i % 0x50))
-			fprintf(stdout, "\n");
-
-		if (buf[i] >= ' ' && buf[i] < '~')
-			fprintf(stdout, "%c", buf[i]);
-		else
-			//fprintf(stdout, " 0x%02x ", buf[i]);
-			fprintf(stdout, " ");
-	}
-
-	fflush(stdout);
-}
-
 void gpx_video_write(void *opaque, hwaddr addr,
                     uint64_t val, unsigned size)
 {
     unsigned i;
     unsigned offset;
+    gpx_video_state *s = (gpx_video_state *)opaque;
 #if 0
     hwaddr base_addr = 0xc000;
     static unsigned line_number, last_line_number = 0;
 #endif
-    //gpx_video_state *s = (gpx_video_state *)opaque;
 
 //    fprintf(stdout, "write addr: 0x%08lx\n", addr);
 //    fprintf(stdout, "write size: %u\n", size);
@@ -85,7 +71,7 @@ void gpx_video_write(void *opaque, hwaddr addr,
             buf[offset] = (uint8_t)((val >> i*8) & 0xff);
         }
 
-        update_screen();
+        s->redraw = 1;
     }
 }
 
@@ -113,11 +99,57 @@ static void gpx_video_instance_init(Object *obj)
     sysbus_init_irq(dev, &s->irq);
 }
 
+static void gpx_update_display(void *opaque, console_ch_t *chardata)
+{
+    int i;
+    char c;
+    gpx_video_state *s = (gpx_video_state *)opaque;
+
+    if (!s->redraw)
+        return;
+
+    dpy_text_cursor(s->con, -1, -1);
+    dpy_text_resize(s->con, 0x51, BUFFER_LEN / 0x51 / 2);
+
+    for (i = 0; i < BUFFER_LEN; i++) {
+        if (!(i % 0x50)) {
+            c = '\n';
+            console_write_ch(chardata++, ATTR2CHTYPE(c, QEMU_COLOR_BLUE,
+                                                     QEMU_COLOR_BLACK, 1));
+        }
+
+        if (buf[i] >= ' ' && buf[i] < '~')
+            c = buf[i];
+        else
+            c = ' ';
+
+        console_write_ch(chardata++, ATTR2CHTYPE(c, QEMU_COLOR_WHITE,
+                                                 QEMU_COLOR_BLACK, 1));
+    }
+
+    s->redraw = 0;
+    dpy_text_update(s->con, 0, 0, 0x51, BUFFER_LEN / 0x51 / 2);
+}
+
+static void gpx_invalidate_display(void * opaque)
+{
+    gpx_video_state *s = (gpx_video_state *)opaque;
+
+    s->redraw = 1;
+}
+
+static const GraphicHwOps gpx_ops = {
+    .invalidate  = gpx_invalidate_display,
+    .text_update  = gpx_update_display,
+};
+
 static void gpx_video_realize(DeviceState *dev, Error **errp)
 {
     gpx_video_state *s = GPX_VIDEO(dev);
 
-    (void)s;
+    s->redraw = 0;
+    s->con = graphic_console_init(dev, 0, &gpx_ops, s);
+    qemu_console_resize(s->con, 0x51, BUFFER_LEN / 0x51 / 2);
 }
 
 static Property gpx_video_properties[] = {
