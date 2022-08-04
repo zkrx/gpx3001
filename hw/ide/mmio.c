@@ -94,14 +94,18 @@ static const MemoryRegionOps mmio_ide_ops = {
 static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
+    uint64_t ret;
     MMIOState *s= opaque;
-    return ide_status_read(&s->bus, 0);
+    ret = ide_status_read(&s->bus, 0);
+    fprintf(stderr, "\e[0;32m%s:\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, (uint32_t)addr, "Alt Status", (uint32_t)ret);
+    return ret;
 }
 
 static void mmio_ide_ctrl_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
+    fprintf(stderr, "\e[0;31m%s:\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, (uint32_t)addr, "Dev Ctrl", (uint32_t)val);
     ide_ctrl_write(&s->bus, 0, val);
 }
 

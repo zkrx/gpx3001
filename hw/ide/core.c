@@ -1277,6 +1277,8 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     /* NOTE: Device0 and Device1 both receive incoming register writes.
      * (They're on the same bus! They have to!) */
 
+    fprintf(stderr, "\e[0;31m%s:\t\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, addr, ATA_IOPORT_WR_lookup[reg_num], val);
+
     switch (reg_num) {
     case 0:
         break;
@@ -2236,6 +2238,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         qemu_irq_lower(bus->irq);
         break;
     }
+    fprintf(stderr, "\e[0;32m%s:\t\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, addr, ATA_IOPORT_RR_lookup[reg_num], ret);
 
     trace_ide_ioport_read(addr, ATA_IOPORT_RR_lookup[reg_num], ret, bus, s);
     return ret;
@@ -2336,6 +2339,7 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
+    fprintf(stderr, "\e[0;31m%s:\t\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, addr, ATA_IOPORT_WR_lookup[addr & 7], val);
     trace_ide_data_writew(addr, val, bus, s);
 
     /* PIO data access allowed only when DRQ bit is set. The result of a write
@@ -2384,6 +2388,8 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
         s->end_transfer_func(s);
     }
 
+    fprintf(stderr, "\e[0;32m%s:\t\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, addr, ATA_IOPORT_RR_lookup[addr & 7], ret);
+
     trace_ide_data_readw(addr, ret, bus, s);
     return ret;
 }
@@ -2394,6 +2400,7 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
+    fprintf(stderr, "\e[0;31m%s:\t\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, addr, ATA_IOPORT_WR_lookup[addr & 7], val);
     trace_ide_data_writel(addr, val, bus, s);
 
     /* PIO data access allowed only when DRQ bit is set. The result of a write
@@ -2444,6 +2451,7 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
     }
 
 out:
+    fprintf(stderr, "\e[0;32m%s:\t\t[0x%04x]\t[%s]\t0x%04x\e[0m\n", __func__, addr, ATA_IOPORT_RR_lookup[addr & 7], ret);
     trace_ide_data_readl(addr, ret, bus, s);
     return ret;
 }
