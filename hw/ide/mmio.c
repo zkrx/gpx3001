@@ -88,7 +88,7 @@ static void mmio_ide_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps mmio_ide_ops = {
     .read = mmio_ide_read,
     .write = mmio_ide_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
@@ -112,7 +112,7 @@ static void mmio_ide_ctrl_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps mmio_ide_cs_ops = {
     .read = mmio_ide_status_read,
     .write = mmio_ide_ctrl_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_ide_mmio = {
